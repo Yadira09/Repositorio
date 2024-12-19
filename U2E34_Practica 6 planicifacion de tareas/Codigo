@@ -1,4 +1,4 @@
-
+#include <LiquidCrystal.h> //libreria para pantalla
 #include <Wire.h> //librerias para mpu
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h> //MPU
@@ -23,18 +23,17 @@ static const int boton3 = 14;    // Botón para iniciar Tarea 6, MPU, cambiar pi
 // Configuracion del MPU6050
 Adafruit_MPU6050 mpu;
 sensors_event_t a, g, temp;
+volatile bool registroActivo = false;  // Bandera para iniciar/detener conteo
+unsigned long tiempos[6] = {0}; // Tiempos en cada cara (6 caras del cubo)
+unsigned long inicioTiempo = 0;
+int j;
+int caraActual = -1; 
 
 // Variables compartidas
 static SemaphoreHandle_t mutex;
 volatile char tar ;
 
-volatile bool registroActivo = false;  // Bandera para iniciar/detener conteo
-unsigned long tiempos[6] = {0}; // Tiempos en cada cara (6 caras del cubo)
-unsigned long inicioTiempo = 0;
 
-//Variables
-int j;
-int caraActual = -1; 
 
 // TAREA 1: Si el botón está presionado, comienza secuencia
 void Tarea1(void *parameter) {
@@ -185,7 +184,7 @@ void Tarea6 (void *pvParameters) {
         xSemaphoreGive(mutex);
       }
     }
-    vTaskDelay(100 / portTICK_PERIOD_MS); // Espera para reducir carga de CPU
+    vTaskDelay(150 / portTICK_PERIOD_MS); // Espera para reducir carga de CPU
   }
 }
 
@@ -228,6 +227,7 @@ void Tarea4(void *parameter) {
 
 
 
+
 void setup() {
   // Configurar pines como salidas
   pinMode(led, OUTPUT);
@@ -244,6 +244,15 @@ void setup() {
   lcd.begin(16, 2);
   lcd.print("Iniciando...");
 
+  // Inicializar comunicación serial
+  Serial.begin(115200);
+  Wire.begin();
+  if (!mpu.begin()) {
+    Serial.println("No se pudo encontrar el MPU6050. Verifique la conexion!");
+    while (1);
+  }
+  Serial.println("MPU6050 listo!");
+  
   // Crear Mutex
   mutex = xSemaphoreCreateMutex();
 
@@ -253,18 +262,8 @@ void setup() {
   xTaskCreatePinnedToCore(Tarea3, "Tarea3", 1024, NULL, 1, NULL, app_cpu);
   xTaskCreatePinnedToCore(Tarea4, "Tarea4", 1024, NULL, 1, NULL, app_cpu);
   xTaskCreatePinnedToCore(Tarea5, "Tarea5", 1024, NULL, 1, NULL,app_cpu);
-  xTaskCreatePinnedToCore(Tarea6, "Tarea6", 1024, NULL, 1, NULL,app_cpu);
-
-
-  // Inicializar comunicación serial
-  Serial.begin(115200);
+  xTaskCreatePinnedToCore(Tarea6, "Tarea6", 8000, NULL, 1, NULL,app_cpu);
 }
-
-void loop() {
-  // El loop no se utiliza en este código
-}
-
-// Funcion para detectar la cara actual basada en los ejes
 int detectarCara(float x, float y, float z) {
   if (z >= 8) return 0;   // Cara Z positiva
   if (z <= -8) return 1;  // Cara Z negativa
@@ -274,3 +273,8 @@ int detectarCara(float x, float y, float z) {
   if (x <= -8) return 5;  // Cara X negativa
   return -1;             // Sin cara detectada
 }
+void loop() {
+  // El loop no se utiliza en este código
+}
+
+// Funcion para detectar la cara actual basada en los ejes
