@@ -1,6 +1,4 @@
-//Falta corregir lo de la cara del MPU y que muestre la cara actual en la LCD.
 
-#include <LiquidCrystal.h> //libreria para pantalla
 #include <Wire.h> //librerias para mpu
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h> //MPU
